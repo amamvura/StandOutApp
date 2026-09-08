@@ -3,6 +3,7 @@ import axios from 'axios'
 import './App.css'
 
 const API_URL = 'http://127.0.0.1:8000'
+const STATUS_OPTIONS = ['Applied', 'Interviewing', 'Offered', 'Accepted', 'Rejected']
 
 function App() {
   const [applications, setApplications] = useState([])
@@ -35,9 +36,29 @@ function App() {
     fetchApplications()
   }
 
+  const handleStatusChange = async (id, newStatus) => {
+    await axios.put(`${API_URL}/applications/${id}`, { status: newStatus })
+    fetchApplications()
+  }
+
+  // Build a count of how many applications are in each status
+  const statusCounts = STATUS_OPTIONS.reduce((counts, status) => {
+    counts[status] = applications.filter((app) => app.status === status).length
+    return counts
+  }, {})
+
   return (
     <div>
       <h1>StandOut Job Tracker</h1>
+
+      <div className="dashboard">
+        {STATUS_OPTIONS.map((status) => (
+          <div key={status} className="stat-box">
+            <span className="stat-count">{statusCounts[status]}</span>
+            <span className="stat-label">{status}</span>
+          </div>
+        ))}
+      </div>
 
       <form onSubmit={handleSubmit}>
         <input
@@ -84,7 +105,18 @@ function App() {
             <tr key={app.id}>
               <td>{app.company_name}</td>
               <td>{app.job_title}</td>
-              <td>{app.status}</td>
+              <td>
+                <select
+                  value={app.status}
+                  onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status}
+                    </option>
+                  ))}
+                </select>
+              </td>
               <td>{app.date_applied}</td>
             </tr>
           ))}
