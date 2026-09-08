@@ -26,3 +26,7 @@ class ApplicationResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class JobPostingText(BaseModel):
+    text: str

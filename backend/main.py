@@ -1,6 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+
+import os
+from dotenv import load_dotenv
+from openai import OpenAI
+import json
 
 import models
 import schemas
@@ -9,6 +15,17 @@ from database import engine, SessionLocal
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+load_dotenv()
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
 
 def get_db():
     db = SessionLocal()
@@ -52,3 +69,19 @@ def delete_application(application_id: int, db: Session = Depends(get_db)):
     db.delete(db_application)
     db.commit()
     return {"message": "Application deleted"}
+
+@app.post("/parse-job")
+def parse_job(posting: schemas.JobPostingText):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "Extract the company name, job title, and location from the job posting text. Respond ONLY with valid JSON in this exact format: {\"company_name\": \"\", \"job_title\": \"\", \"location\": \"\"}. If a field isn't found, use an empty string."
+            },
+            {"role": "user", "content": posting.text}
+        ]
+    )
+    result = response.choices[0].message.content
+    parsed = json.loads(result)
+    return parsed
